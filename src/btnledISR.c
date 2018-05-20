@@ -11,15 +11,14 @@
 
 EX_INTERRUPT_HANDLER(ButtonsISR)
 {
-	//setLEDDisplay(*pFIO0_FLAG_D);
+	//Read flag data register
 	u16_t btnInfo = *pFIO0_FLAG_D & 0x01E0;
 	//Becuase this is a rising edge interrupt, clear flag data register
 	*pFIO0_FLAG_C = 0x01E0;
-
-	//FSM
-	//See which button generates an interrupt
 	
 	recAction = skip;
+	
+	//FSM state transfer
 	switch(btnInfo)
 	{
 	case (1 << BTN0_PF):	//btn0
@@ -39,53 +38,4 @@ EX_INTERRUPT_HANDLER(ButtonsISR)
 		setLEDDisplay(0xFFFF);
 		break;
 	}
-	
-	/*switch(currMode)
-	{
-	case ready:
-		switch(btnInfo)
-		{
-		case BTN3_PR:
-			currMode = train;
-			break;
-		default:
-			break;
-		}
-		break;
-	
-	case train:
-		switch(btnInfo)
-		{
-		case BTN0_PR:
-			break;
-		case BTN1_PR:
-			
-			break;
-			
-		}
-		break;
-	}*/
-	
-		
-	//See which button generates an interrupt
-	/*switch(btnInfo)
-	{
-	case (1 << BTN0_PF):
-		toggleLED(0);
-		currMode = train;
-		break;
-	case (1 << BTN1_PF):
-		toggleLED(1);
-		currMode = test;
-		break;
-	case (1 << BTN2_PF):
-		toggleLED(2);
-		break;
-	case (1 << BTN3_PF):
-		toggleLED(3);
-		break;
-	default:
-		setLEDDisplay(btnInfo);
-		break;
-	}*/
 }

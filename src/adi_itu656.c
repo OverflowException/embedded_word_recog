@@ -413,26 +413,6 @@ void adi_video_ColumnFill ( char *frame_ptr,FRAME_TYPE frametype,unsigned long c
     }
 }
 
-
-
-
-    /*case (PAL_IL):
-
-        *f1start = PAL_ILAF1_START;   // active line start - Field1
-        *f1end = PAL_ILAF1_END;       // active line end - Field1
-        // Calculate Field 1 first active line's active data start address
-        *address1 = frame_ptr + ((PAL_ILAF1_START-1) * PAL_DATA_PER_LINE);
-
-        *f2start = PAL_ILAF2_START;   // active line start - Field2
-        *f2end = PAL_ILAF2_END;       // active line end - Field2
-        // Calculate Field 2 first active line start address
-        *address2 = frame_ptr + ((PAL_ILAF2_START-1) * PAL_DATA_PER_LINE);
-		// Number of bytes to skip per line to reach active data
-		*SkipBlank	= PAL_BLANKING + EAV_SIZE + SAV_SIZE;
-		
-        break;*/
-        
-
 void adi_video_PixelSet(char* frame_ptr, unsigned long x, unsigned long y, char *ycbcr_data)
 {
 	unsigned long skipBlank = PAL_BLANKING + EAV_SIZE + SAV_SIZE;
