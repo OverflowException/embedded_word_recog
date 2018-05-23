@@ -54,9 +54,9 @@ typedef struct _fsm
 
 typedef struct
 {
-	float data[SPECT_H][SPECT_W];
+	float data[CEPST_H][CEPST_W];
 	u32_t effHeight;
-}spectro_t;
+}cepstra_t;
 
 typedef struct
 {

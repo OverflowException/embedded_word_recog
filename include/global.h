@@ -66,8 +66,8 @@ extern float spectroBuff[][SPECT_W];
 extern complex_fract16 twids[];*/
 
 extern audio_t inAudio;
-extern spectro_t spectroTemplates[SPECT_TEMPLATE_NUM];
-extern spectro_t spectroBuff;
+extern cepstra_t cepstraTemplates[CEPST_TEMPLATE_NUM];
+extern cepstra_t cepstraBuff;
 
 
 //extern volatile bool dmaDone;

@@ -5,7 +5,7 @@
 /* VDSG version: 5.9.0.1                                        */
 
 /*
-** User heap source file generated on Apr 22, 2018 at 13:25:36.
+** User heap source file generated on May 23, 2018 at 19:44:56.
 **
 ** Copyright (C) 2000-2010 Analog Devices Inc., All Rights Reserved.
 **
@@ -26,7 +26,7 @@
 **     use_eh:                                 true
 **     use_argv:                               true
 **     running_from_internal_memory:           true
-**     user_heap_src_file:                     E:\projects\EDSP\word_recog_system_monitor\word_recog_system_monitor_heaptab.c
+**     user_heap_src_file:                     E:\projects\EDSP\embedded_word_recog\word_recog_system_monitor_heaptab.c
 **     libraries_use_stdlib:                   true
 **     libraries_use_fileio_libs:              false
 **     libraries_use_ieeefp_emulation_libs:    false

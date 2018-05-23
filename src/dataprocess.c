@@ -11,7 +11,8 @@ u32_t audioSampleNum = AUDIO_SAMPLE_NUM; //Total number of samples
 u32_t audioBufLen = AUDIO_BUF_LEN; //Total length of audio buffer (including 3 irrelavent u16_t per sample)
 
 complex_fract16 fftOut[FFT_SIZE];
-float distMat[SPECT_H][SPECT_H];
+
+float distMat[CEPST_H][CEPST_H];
 
 #define OVERHEAD_SAMPLE_NUM	64
 #define TIMING_SAMPLE_NUM	128
@@ -85,7 +86,8 @@ void findEffData(const u16_t* rawdata, u16_t* effdata, u32_t* efflen)
 	*efflen = effIdx;
 }
 
-void genSpectro(const fract16* data, u32_t dlen, float spectro[][SPECT_W], u32_t* slen, const complex_fract16* twidtab)
+void genCepstra(const fract16* data, u32_t dlen, float cepstra[][CEPST_W], u32_t* slen, 
+				const complex_fract16* ffttwid, const complex_fract16* dcttwid, const float* loglut)
 {
 	//Only enough data for a single frame of fft, discard
 	if(dlen < FFT_SIZE + FFT_SIZE / 2)
@@ -96,32 +98,52 @@ void genSpectro(const fract16* data, u32_t dlen, float spectro[][SPECT_W], u32_t
 	
 	u32_t frameOffset = FFT_SIZE / 2;	//FFT frame offset
 	u32_t frameNum = dlen / frameOffset - 1;	//total FFT frame number
-	complex_fract16 origin = ccompose_fr16(0, 0);
+	complex_fract16 origin = ccompose_fr16(0, 0);	//complex origin, 0+0i
 	int expo = 0;
-	u32_t spectRow, spectCol;	//spectrogram row and column index
-	for(spectRow = 0; frameNum > 0; --frameNum, ++spectRow)
+	u32_t ceRow, ceCol, ceIdx;	//CCA row and column index
+	u16_t fftIdx;	//FFT value index and cepstral coefficient index
+	u16_t phase, deltaPhase;	//DCT phase and delta phase
+	u16_t dctPeriod = SPECT_W * 4;
+	
+	//Traverse rows of CCA
+	for(ceRow = 0; frameNum > 0; --frameNum, ++ceRow)
 	{
-		rfft_fr16(data += frameOffset, fftOut, twidtab, 1, FFT_SIZE, &expo, 
+		
+		//Perform FFT
+		rfft_fr16(data += frameOffset, fftOut, ffttwid, 1, FFT_SIZE, &expo, 
 	#ifdef FFT_STATIC_EXPO
 		1
 	#else
 		2
 	#endif
-		);	//dynamic scaling, since input signal value is relatively small
-		//copy into spectrogram, DC component ignored
-		for(spectCol = 0; spectCol < SPECT_W; ++spectCol)
+		);
+		
+		//Traverse elements of CCA
+		for(ceCol = 0; ceCol < CEPST_W; ++ceCol)
+		{
+			
+			//Ignore the first cepstral coefficients
+			ceIdx = ceCol + 1;
+			phase = ceIdx;
+			deltaPhase = ceIdx * 2;
+			
+			cepstra[ceRow][ceCol] = 0.0f;
+			//Traverse FFT values
+			for(fftIdx = 0; fftIdx < SPECT_W; ++fftIdx)
+			{
+				if((phase += deltaPhase) >= dctPeriod)
+					phase -= dctPeriod;	
+				
 	#ifdef FFT_STATIC_EXPO
-			spectro[spectRow][spectCol] = fr16_to_float(cdst_fr16(fftOut[spectCol + 1], origin));
+				//cepstra[ceRow][ceCol] = loglut[(u16_t)cdst_fr16(fftOut[fftIdx], origin)] * fr16_to_float(real_fr16(dcttwid[phase]));
+				cepstra[ceRow][ceCol] += loglut[cdst_fr16(fftOut[fftIdx], origin)] * fr16_to_float(real_fr16(dcttwid[phase]));
 	#else
-			spectro[spectRow][spectCol] = fr16_to_float(cdst_fr16(fftOut[spectCol + 1], origin)) * (1 << expo);
+				cepstra[ceRow][ceCol] += loglut[(u16_t)cdst_fr16(fftOut[fftIdx] * (1 << expo), orgin)] * real_fr16(dcttwid[phase]);
 	#endif
+			}
+		}
 	}
-	*slen = spectRow;
-	
-#ifdef NORM_LOG
-	//normalize spectrogram
-	normSpectro(spectro, *slen);
-#endif
+	*slen = ceRow;
 			
 	return;
 }
@@ -160,72 +182,50 @@ u32_t getAvgEnergy(const u16_t* data, u32_t count, u32_t stride, u16_t avg)
 		
 }
 
-float logValMax = FLT_MIN;
-float logValMin = FLT_MAX;
-
-void normSpectro(float spectro[][SPECT_W], u32_t slen)
-{
-	float logVal;
-	
-	u32_t row, col;
-	for(row = 0; row < slen; ++row)
-		for(col = 0; col < SPECT_W; ++col)
-		{
-			logVal = spectro[row][col];
-			logValMax = logVal > logValMax ? logVal : logValMax;
-			logValMin = logVal < logValMin ? logVal : logValMin;
-		}
-	
-	float scale = (NORM_MAX - NORM_MIN) / (logValMax - logValMin);
-	float dist = NORM_MAX - scale * logValMax;
-	
-	for(row = 0; row < slen; ++row)
-		for(col = 0; col < SPECT_W; ++col)
-			spectro[row][col] = log10(scale * spectro[row][col] + dist);
-}
-
-
 float dtwResult;
-float genSimilarity(const spectro_t* spectro1, const spectro_t* spectro2)
+float genSimilarity(const cepstra_t* cepstra1, const cepstra_t* cepstra2)
 {
 	u32_t row, col;
-	u32_t height = spectro1->effHeight;
-	u32_t width  = spectro2->effHeight;
+	u32_t height = cepstra1->effHeight;
+	u32_t width  = cepstra2->effHeight;
 	
-	//Alloc distance matrix
-	
-	/*distMat = (float**)malloc(height * sizeof(float*));
-	for(row = 0; row < height; ++row)
-		distMat[row] = (float*)malloc(width * sizeof(float));*/
-	
-	genDistMat(spectro1, spectro2, distMat);
+	genDistMat(cepstra1, cepstra2, distMat);
 	dtw(distMat, width, height);
 	
 	
 	dtwResult = distMat[height - 1][width - 1];
-	//Free dist matrix
-	/*for(row = 0; row < height; ++row)
-		free(distMat[row]);
-	free(distMat);*/
 	
 	return dtwResult;
 }
 
-void genDistMat(const spectro_t* spectro1, const spectro_t* spectro2, float distmat[][SPECT_H])
+
+void genLogLut(float* lut)
 {
-	u32_t spect1Row, spect2Row, col;
-	u32_t height = spectro1->effHeight;
-	u32_t width  = spectro2->effHeight;
+	u16_t binFract;
+	//fract16 ranging from 2^(-15) = 0.000030517578125 to 1-2^(-15) = 0.999969482421875
+	for(binFract = 0x0001; binFract < 0x8000; ++binFract)
+		lut[binFract] = log10(fr16_to_float((fract16)binFract));
 	
-	for(spect1Row = 0; spect1Row < height; ++spect1Row)
-		for(spect2Row = 0; spect2Row < width; ++spect2Row)
+	//Minimum log value
+	lut[0] = lut[1] - 0.425;
+}
+
+
+void genDistMat(const cepstra_t* cepstra1, const cepstra_t* cepstra2, float distmat[][CEPST_H])
+{
+	u32_t cepst1Row, cepst2Row, col;
+	u32_t height = cepstra1->effHeight;
+	u32_t width  = cepstra2->effHeight;
+	
+	for(cepst1Row = 0; cepst1Row < height; ++cepst1Row)
+		for(cepst2Row = 0; cepst2Row < width; ++cepst2Row)
 		{
-			distmat[spect1Row][spect2Row] = 0;
-			for(col = 0; col < SPECT_W; ++col)
+			distmat[cepst1Row][cepst2Row] = 0;
+			for(col = 0; col < CEPST_W; ++col)
 		#ifdef ABS_DISTANCE
-				distmat[spect1Row][spect2Row] += fabs(spectro1->data[spect1Row][col] - spectro2->data[spect2Row][col]);
+				distmat[cepst1Row][cepst2Row] += fabs(cepstra1->data[cepst1Row][col] - cepstra2->data[cepst2Row][col]);
 		#else
-				distmat[spect1Row][spect2Row] += pow(spectro1->data[spect1Row][col] - spectro2->data[spect2Row][col], 2);
+				distmat[cepst1Row][cepst2Row] += pow(cepstra1->data[cepst1Row][col] - cepstra2->data[cepst2Row][col], 2);
 		#endif
 		}
 	
@@ -233,7 +233,7 @@ void genDistMat(const spectro_t* spectro1, const spectro_t* spectro2, float dist
 
 
 //Obtain similarity at the last row last column
-void dtw(float mat[][SPECT_H], u32_t width, u32_t height)
+void dtw(float mat[][CEPST_H], u32_t width, u32_t height)
 {
 	if(width <= 1 || height <= 1)
 		return;

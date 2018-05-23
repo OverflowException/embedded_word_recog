@@ -9,22 +9,24 @@ void findEffData(const u16_t* rawdata,
 				 u16_t* effdata, 
 				 u32_t* efflen);
 				 
-void genSpectro(const fract16* data, 
+void genCepstra(const fract16* data, 
 				u32_t dlen, 
-				float spectro[][SPECT_W], 
+				float cepstra[][CEPST_W], 
 				u32_t* slen, 
-				const complex_fract16* twidtab);
+				const complex_fract16* ffttwid,
+				const complex_fract16* dcttwid,
+				const float* loglut);
 				
-float genSimilarity(const spectro_t* spectro1, const spectro_t* spectro2);
+float genSimilarity(const cepstra_t* cepstra1, const cepstra_t* cepstra2);
 
 
 
 u16_t getAvgAmp(const u16_t* data, u32_t count, u32_t stride);
 u32_t getAvgEnergy(const u16_t* data, u32_t count, u32_t stride, u16_t avg);
-void normSpectro(float spectro[][SPECT_W], u32_t slen);
 
-void genDistMat(const spectro_t* spectro1, const spectro_t* spectro2, float distmat[][SPECT_H]);
-void dtw(float mat[][SPECT_H], u32_t width, u32_t height);
+void genLogLut(float* lut);
+void genDistMat(const cepstra_t* cepstra1, const cepstra_t* cepstra2, float distmat[][CEPST_H]);
+void dtw(float mat[][CEPST_H], u32_t width, u32_t height);
 
 
 #endif

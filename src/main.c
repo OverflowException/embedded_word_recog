@@ -9,12 +9,16 @@
 #include "monitor.h"
 
 audio_t inAudio;
-spectro_t spectroTemplates[SPECT_TEMPLATE_NUM];
-spectro_t spectroBuff;
+cepstra_t cepstraTemplates[CEPST_TEMPLATE_NUM];
+cepstra_t cepstraBuff;
 
 //Twiddle factors
-complex_fract16 twid[FFT_SIZE / 2];
-float simiArr[SPECT_TEMPLATE_NUM];
+complex_fract16 ffttwid[FFT_SIZE / 2];
+complex_fract16 dcttwid[SPECT_W * 4];
+float logLut[FRACT16_NUM];
+////////////////
+
+float simiArr[CEPST_TEMPLATE_NUM];
 float minSimi = FLT_MAX;
 u16_t simiTempIdx = 0;
 
@@ -49,7 +53,9 @@ int main(void)
 	//InitLEDs();
 	InitButtonsInt();
 	
-	twidfftrad2_fr16(twid, FFT_SIZE);
+	twidfftrad2_fr16(ffttwid, FFT_SIZE);
+	twidfftrad2_fr16(dcttwid, SPECT_W * 4);
+	genLogLut(logLut);
 	
 	InitFSM();
 	
@@ -80,26 +86,30 @@ int main(void)
 			{
 			case train:
 				tempIdx = btnFSM.currState->word - 1;
-				genSpectro((const fract16*)inAudio.data, 
+				genCepstra((const fract16*)inAudio.data, 
 							inAudio.effLen, 
-							spectroTemplates[tempIdx].data, 
-							&spectroTemplates[tempIdx].effHeight, 
-							twid);
+							cepstraTemplates[tempIdx].data, 
+							&cepstraTemplates[tempIdx].effHeight, 
+							ffttwid,
+							dcttwid,
+							logLut);
 				break;
 			case test:
-				genSpectro((const fract16*)inAudio.data, 
+				genCepstra((const fract16*)inAudio.data, 
 							inAudio.effLen, 
-							spectroBuff.data, 
-							&spectroBuff.effHeight, 
-							twid);
+							cepstraBuff.data, 
+							&cepstraBuff.effHeight, 
+							ffttwid,
+							dcttwid,
+							logLut);
 				//recognize
 				// 2 seperate cycles, for debugging
-				for(tempIdx = 0; tempIdx < SPECT_TEMPLATE_NUM; ++tempIdx)
-					//To prevent untrained spectrogram
-					simiArr[tempIdx] = spectroTemplates[tempIdx].effHeight == 0 ? FLT_MAX : genSimilarity(&spectroBuff, spectroTemplates + tempIdx);
+				for(tempIdx = 0; tempIdx < CEPST_TEMPLATE_NUM; ++tempIdx)
+					//To prevent untrained CCA
+					simiArr[tempIdx] = cepstraTemplates[tempIdx].effHeight == 0 ? FLT_MAX : genSimilarity(&cepstraBuff, cepstraTemplates + tempIdx);
 				
 				minSimi = FLT_MAX;
-				for(tempIdx = 0; tempIdx < SPECT_TEMPLATE_NUM; ++tempIdx)
+				for(tempIdx = 0; tempIdx < CEPST_TEMPLATE_NUM; ++tempIdx)
 					if(simiArr[tempIdx] < minSimi)
 					{
 						minSimi = simiArr[tempIdx];

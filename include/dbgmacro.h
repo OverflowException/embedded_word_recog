@@ -15,10 +15,10 @@
 
 
 #define FFT_SIZE	1024
-#define SPECT_W	(100 - 1)
-#define SPECT_H	(AUDIO_SAMPLE_NUM / (FFT_SIZE / 2) - 1)	//= 92 when AUDIO_SAMPLE_NUM = 48000, FFT_SIZE = 1024
-#define SPECT_TEMPLATE_NUM	4
-
+#define SPECT_W	100
+#define CEPST_W	30
+#define CEPST_H	(AUDIO_SAMPLE_NUM / (FFT_SIZE / 2) - 1)	//= 92 when AUDIO_SAMPLE_NUM = 48000, FFT_SIZE = 1024
+#define CEPST_TEMPLATE_NUM	4
 
 
 //Calculate energy with absolute value, power = abs(amplitude - amplitude_average), faster but less sensitive
@@ -29,14 +29,10 @@
 //Calculate Euclidian distance between vectors with abs, instead of power
 #define ABS_DISTANCE
 
-
-//normalize then log10 the spectrogram. NORM_MAX and NORM_MIN are the max and min of normalization
-//#define NORM_LOG
-#define NORM_MAX	10.0f
-#define NORM_MIN	1.0f
-
 //static exponent for FFT, which is suitable for high amplitute
 #define FFT_STATIC_EXPO
 
+
+#define FRACT16_NUM	65536
 
 #endif
