@@ -6,7 +6,7 @@
 EX_INTERRUPT_HANDLER(Sport0RXISR)
 {	
 	//CLear DMA_DONE bit to confirm interrupt handling. DMA_DONE bit is write-one-to-clear
-	*pDMA2_0_IRQ_STATUS = 0x0001;
+	*pDMA2_0_IRQ_STATUS = DMA_DONE;
 	ssync();
 	//startRec = true;
 	recAction = end;

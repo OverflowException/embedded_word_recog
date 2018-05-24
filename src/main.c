@@ -67,7 +67,7 @@ int main(void)
 	InitFSM();
 	
 	
-	u16_t tempIdx = 0;
+	u16_t tempIdx, currBufIdx, nextBufIdx;
 	while(true)
 	{
 		if(btnFSM.currState != btnFSM.prevState)	//button pressed, state change occured
@@ -109,10 +109,21 @@ int main(void)
 							ffttwid,
 							dcttwid,
 							logLut);
-				//recognize
+			
+				//Transfer the first CCA from L2 to L1
+				startMemDMA((void*)cepstraTemplates, (void*)cepstraTemp, sizeof(cepstra_t));
 				for(tempIdx = 0; tempIdx < CEPST_TEMPLATE_NUM; ++tempIdx)
+				{
+					//Wait for DMA to finish
+					while(!memDMADone());
+					currBufIdx = tempIdx & 0x0001;
+					nextBufIdx = (tempIdx + 1) & 0x0001;
+					
+					startMemDMA((void*)&cepstraTemplates[tempIdx + 1], (void*)&cepstraTemp[nextBufIdx], sizeof(cepstra_t));
 					//To prevent untrained CCA
-					simiArr[tempIdx] = cepstraTemplates[tempIdx].effHeight == 0 ? FLT_MAX : genSimilarity(&cepstraBuff, cepstraTemplates + tempIdx);
+					simiArr[tempIdx] = cepstraTemp[currBufIdx].effHeight == 0 ? 
+										FLT_MAX : genSimilarity(&cepstraBuff, &cepstraTemp[currBufIdx]);
+				}
 				
 				minSimi = FLT_MAX;
 				for(tempIdx = 0; tempIdx < CEPST_TEMPLATE_NUM; ++tempIdx)

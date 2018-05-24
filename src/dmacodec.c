@@ -128,7 +128,7 @@ void initDMACodecOut(u16_t* outmem, u32_t snum)
 	
 }
 
-void initMemDma(void* src, void* dst, u16_t size)
+void startMemDMA(void* src, void* dst, u16_t size)
 {
 	//Configure memory DMA source
 	//stop mode, no interrupt
@@ -140,16 +140,16 @@ void initMemDma(void* src, void* dst, u16_t size)
 	ssync();
 	
 	//Configure memory DMA destination
-	*pMDMA1_D0_CONFIG = WNR;
+	*pMDMA1_D0_CONFIG = DI_EN | WNR;
 	ssync();
 	*pMDMA1_D0_START_ADDR = dst;
 	*pMDMA1_D0_X_COUNT = size;
 	*pMDMA1_D0_X_MODIFY = 1;
 	ssync();
 	
-	//Clear DMA_DONE bit. No pending irq
-	*pMDMA1_S0_IRQ_STATUS = 0x0001;
-	*pMDMA1_D0_IRQ_STATUS = 0x0001;	
+	//Clear DMA_DONE bit
+	*pMDMA1_S0_IRQ_STATUS = DMA_DONE;
+	*pMDMA1_D0_IRQ_STATUS = DMA_DONE;	
 	ssync();
 	
 	*pMDMA1_S0_CONFIG |= DMAEN;
@@ -223,3 +223,7 @@ void enableDMACodecOut(void)
 	ssync();
 }
 
+bool memDMADone(void)
+{
+	return 	(*pMDMA1_D0_IRQ_STATUS) & DMA_DONE;
+}
