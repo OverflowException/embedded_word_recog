@@ -9,12 +9,19 @@
 #include "monitor.h"
 
 audio_t inAudio;
-cepstra_t cepstraTemplates[CEPST_TEMPLATE_NUM];
-cepstra_t cepstraBuff;
 
-//Twiddle factors
-complex_fract16 ffttwid[FFT_SIZE / 2];
-complex_fract16 dcttwid[SPECT_W * 4];
+//CCA templates
+section("l2_sram") cepstra_t cepstraTemplates[CEPST_TEMPLATE_NUM];
+//High speed CCA ping-pong buffs
+section("L1_data_b") cepstra_t cepstraTemp[2];
+//CCA testing buff
+section("L1_data_a") cepstra_t cepstraBuff;
+
+
+//Twiddle factors for FFT
+section("L1_data_a") complex_fract16 ffttwid[FFT_SIZE / 2];
+//Twiddle factors for DCT
+section("L1_data_a") complex_fract16 dcttwid[SPECT_W * 4];
 float logLut[FRACT16_NUM];
 ////////////////
 
@@ -43,15 +50,15 @@ int main(void)
 	formatDisplayBuffers();
 	setMonitorBg(BLACK);
 
- 	Init1836();
+ 	init1836();
  	
-	InitSport0In();
-	InitSport0Out();
-	InitDMACodecInInterrupts();
+	initSport0In();
+	initSport0Out();
+	initDMACodecInInterrupts();
 	
-	InitButtons();
+	initButtons();
 	//InitLEDs();
-	InitButtonsInt();
+	initButtonsInt();
 	
 	twidfftrad2_fr16(ffttwid, FFT_SIZE);
 	twidfftrad2_fr16(dcttwid, SPECT_W * 4);
@@ -103,7 +110,6 @@ int main(void)
 							dcttwid,
 							logLut);
 				//recognize
-				// 2 seperate cycles, for debugging
 				for(tempIdx = 0; tempIdx < CEPST_TEMPLATE_NUM; ++tempIdx)
 					//To prevent untrained CCA
 					simiArr[tempIdx] = cepstraTemplates[tempIdx].effHeight == 0 ? FLT_MAX : genSimilarity(&cepstraBuff, cepstraTemplates + tempIdx);
@@ -117,10 +123,10 @@ int main(void)
 					}
 				
 				//show result
-				showResult(simiTempIdx);//setLEDDisplay((getLEDDisplay() & 0xFFF0) | (1 << simiTempIdx));
+				showResult(simiTempIdx);
 				break;
 			}
-			clearProc();//toggleLED(5 + btnFSM.currState->mode);
+			clearProc();
 		}
 	}
 	

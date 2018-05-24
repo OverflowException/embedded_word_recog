@@ -37,9 +37,9 @@ FIO2 47-32
 #define BTN2_PF	7
 #define BTN3_PF	8
 
-void InitButtons(void);
-void InitButtonsInt(void);
-void InitLEDs(void);  
+void initButtons(void);
+void initButtonsInt(void);
+void initLEDs(void);  
 void turnOnLED(u32_t led);
 void turnOffLED(u32_t led);
 void toggleLED(u32_t led);

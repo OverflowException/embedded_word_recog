@@ -10,7 +10,8 @@
 u32_t audioSampleNum = AUDIO_SAMPLE_NUM; //Total number of samples
 u32_t audioBufLen = AUDIO_BUF_LEN; //Total length of audio buffer (including 3 irrelavent u16_t per sample)
 
-complex_fract16 fftOut[FFT_SIZE];
+//Avoid data bank collision with 
+section("L1_data_b") complex_fract16 fftOut[FFT_SIZE];
 
 float distMat[CEPST_H][CEPST_H];
 

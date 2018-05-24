@@ -23,7 +23,7 @@ volatile u16_t sCodec1836TxRegs[CODEC_1836_REGS_LENGTH]=
 	ADC_CONTROL_3	| 0x00A
 };
 
-void Init1836(void)
+void init1836(void)
 {	
 	volatile int wait_reset;
 	volatile int wait_dma_finish;
@@ -73,7 +73,7 @@ void Init1836(void)
 	*pSPI_CTL = 0x0000;
 }
 
-void InitSport0In(void)
+void initSport0In(void)
 {
 	// Sport0 receive configuration
 	// External CLK, External Frame sync, MSB first, Active Low
@@ -82,7 +82,7 @@ void InitSport0In(void)
 	*pSPORT0_RCR2 = RSFSE | RXSE | SLEN_16;
 }
 
-void InitSport0Out(void)
+void initSport0Out(void)
 {
 	// Sport0 transmit configuration
 	// External CLK, External Frame sync, MSB first, Active Low
@@ -91,7 +91,7 @@ void InitSport0Out(void)
 	*pSPORT0_TCR2 = TSFSE | TXSE | SLEN_16;
 }
 
-void InitDMACodecIn(u16_t* inmem)
+void initDMACodecIn(u16_t* inmem)
 {
 	//DMA2 channel 0 default peripheral SPORT0 RX
 	//Stop mode, 2D, interrupt on outerloop completion, 16 bits tranfer, to memory
@@ -105,7 +105,7 @@ void InitDMACodecIn(u16_t* inmem)
 	ssync();
 }
 
-void InitDMACodecOut(u16_t* outmem, u32_t snum)
+void initDMACodecOut(u16_t* outmem, u32_t snum)
 {
 	//DMA2 channel 1 default peripheral SPORT0 TX
 	*pDMA2_1_START_ADDR = (void *)outmem;
@@ -126,6 +126,35 @@ void InitDMACodecOut(u16_t* outmem, u32_t snum)
 	*pDMA2_1_X_MODIFY = 2;
 	ssync();
 	
+}
+
+void initMemDma(void* src, void* dst, u16_t size)
+{
+	//Configure memory DMA source
+	//stop mode, no interrupt
+	*pMDMA1_S0_CONFIG = 0x00;
+	ssync();
+	*pMDMA1_S0_START_ADDR = src;
+	*pMDMA1_S0_X_COUNT = size;
+	*pMDMA1_S0_X_MODIFY = 1;
+	ssync();
+	
+	//Configure memory DMA destination
+	*pMDMA1_D0_CONFIG = WNR;
+	ssync();
+	*pMDMA1_D0_START_ADDR = dst;
+	*pMDMA1_D0_X_COUNT = size;
+	*pMDMA1_D0_X_MODIFY = 1;
+	ssync();
+	
+	//Clear DMA_DONE bit. No pending irq
+	*pMDMA1_S0_IRQ_STATUS = 0x0001;
+	*pMDMA1_D0_IRQ_STATUS = 0x0001;	
+	ssync();
+	
+	*pMDMA1_S0_CONFIG |= DMAEN;
+	*pMDMA1_D0_CONFIG |= DMAEN;
+	ssync();
 }
 
 //Do not change the order of this restart configuration. This is mythology.
@@ -155,23 +184,9 @@ void restartAudioOut(u16_t* outmem, u32_t snum)
 	ssync();
 	*pDMA2_1_CONFIG = 0x1000 | WDSIZE_16 | RESTART| DMAEN;
 	ssync();
-	/*//if snum is over 16 bits, use 2D DMA
-	if(snum > 0xFFFF)
-	{
-		*pDMA2_1_Y_COUNT = AUDIO_SAMPLE_LEN * (u16_t)(snum >> 16);
-		*pDMA2_1_Y_MODIFY = 2;
-		*pDMA2_1_CONFIG = WDSIZE_16 | DMA2D | DMAEN;
-		ssync();
-	}
-	//if snum is within 16 bits, use 1D DMA
-	else
-	{
-		*pDMA2_1_CONFIG = WDSIZE_16 | DMAEN;
-		ssync();
-	}*/
 }
 
-void InitDMACodecInInterrupts(void)
+void initDMACodecInInterrupts(void)
 {
 	// assign interrupt channel 23 (DMA2_0) to IVG9 
 	*pSICA_IAR2 = Peripheral_IVG(23,9);	
@@ -190,7 +205,7 @@ void InitDMACodecInInterrupts(void)
 }
 
 
-void EnableDMACodecIn(void)
+void enableDMACodecIn(void)
 {
 	//Enable DMA 2 channel 0
 	*pDMA2_0_CONFIG	|= DMAEN;
@@ -199,7 +214,7 @@ void EnableDMACodecIn(void)
 	ssync();
 }
 
-void EnableDMACodecOut(void)
+void enableDMACodecOut(void)
 {
 	//Enable DMA 2 channel 1
 	*pDMA2_1_CONFIG	|= DMAEN;
@@ -207,3 +222,4 @@ void EnableDMACodecOut(void)
 	*pSPORT0_TCR1 	|= TSPEN;
 	ssync();
 }
+

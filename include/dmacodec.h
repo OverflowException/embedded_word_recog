@@ -4,21 +4,22 @@
 #include <sys\exception.h>
 #include "deftypes.h"
 
-void Init1836(void);
+void init1836(void);
 
-void InitSport0In(void);
-void InitSport0Out(void);
+void initSport0In(void);
+void initSport0Out(void);
 
-void InitDMACodecIn(u16_t* inmem);
-void InitDMACodecOut(u16_t* outmem, u32_t snum);
+void initDMACodecIn(u16_t* inmem);
+void initDMACodecOut(u16_t* outmem, u32_t snum);
+void startMemDma(void* src, void* dest, u16_t size);
 
 void restartAudioIn(u16_t* inmem);
 void restartAudioOut(u16_t* outmem, u32_t snum);
 
-void InitDMACodecInInterrupts(void);
+void initDMACodecInInterrupts(void);
 
-void EnableDMACodecIn(void);
-void EnableDMACodecOut(void);
+void enableDMACodecIn(void);
+void enableDMACodecOut(void);
 
 EX_INTERRUPT_HANDLER(Sport0RXISR);
 

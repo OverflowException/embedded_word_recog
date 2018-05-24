@@ -2,7 +2,7 @@
 #include <ccblkfn.h>
 #include "btnled.h"
 
-void InitButtons(void)
+void initButtons(void)
 {
 	//Set all pins connected to buttons as input
 	*pFIO0_DIR &= ~(0x01E0);
@@ -15,7 +15,7 @@ void InitButtons(void)
 	ssync();
 }   
 
-void InitLEDs(void)
+void initLEDs(void)
 {
 	//Set all pins connected to LEDs as output
 	*pFIO2_DIR |= 0xFFFF;
@@ -46,7 +46,7 @@ void toggleLED(u32_t led)
 	ssync();
 }
 
-void InitButtonsInt(void)
+void initButtonsInt(void)
 {
 	//All programmable flags's interrupt channel is mapped to IVG11
 	//register interrupt handler to IVG11
