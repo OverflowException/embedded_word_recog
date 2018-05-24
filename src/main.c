@@ -13,9 +13,9 @@ audio_t inAudio;
 //CCA templates
 section("l2_sram") cepstra_t cepstraTemplates[CEPST_TEMPLATE_NUM];
 //High speed CCA ping-pong buffs
-section("L1_data_b") cepstra_t cepstraTemp[2];
+section("L1_data_b") cepstra_t cepstraBuff[2];
 //CCA testing buff
-section("L1_data_a") cepstra_t cepstraBuff;
+section("L1_data_a") cepstra_t cepstraTest;
 
 
 //Twiddle factors for FFT
@@ -104,27 +104,30 @@ int main(void)
 			case test:
 				genCepstra((const fract16*)inAudio.data, 
 							inAudio.effLen, 
-							cepstraBuff.data, 
-							&cepstraBuff.effHeight, 
+							cepstraTest.data, 
+							&cepstraTest.effHeight, 
 							ffttwid,
 							dcttwid,
 							logLut);
 			
 				//Transfer the first CCA from L2 to L1
-				startMemDMA((void*)cepstraTemplates, (void*)cepstraTemp, sizeof(cepstra_t));
+				startMemDMA((void*)cepstraTemplates, (void*)cepstraBuff, sizeof(cepstra_t));
 				for(tempIdx = 0; tempIdx < CEPST_TEMPLATE_NUM; ++tempIdx)
 				{
 					//Wait for DMA to finish
 					while(!memDMADone());
+					
+					//Start next buffer transmission
 					currBufIdx = tempIdx & 0x0001;
 					nextBufIdx = (tempIdx + 1) & 0x0001;
+					startMemDMA((void*)&cepstraTemplates[tempIdx + 1], (void*)&cepstraBuff[nextBufIdx], sizeof(cepstra_t));
 					
-					startMemDMA((void*)&cepstraTemplates[tempIdx + 1], (void*)&cepstraTemp[nextBufIdx], sizeof(cepstra_t));
 					//To prevent untrained CCA
-					simiArr[tempIdx] = cepstraTemp[currBufIdx].effHeight == 0 ? 
-										FLT_MAX : genSimilarity(&cepstraBuff, &cepstraTemp[currBufIdx]);
+					simiArr[tempIdx] = cepstraBuff[currBufIdx].effHeight == 0 ? 
+										FLT_MAX : genSimilarity(&cepstraTest, &cepstraBuff[currBufIdx]);
 				}
 				
+				//Match templates
 				minSimi = FLT_MAX;
 				for(tempIdx = 0; tempIdx < CEPST_TEMPLATE_NUM; ++tempIdx)
 					if(simiArr[tempIdx] < minSimi)

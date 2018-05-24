@@ -57,21 +57,6 @@
 
 #define AD1836_RESET_bit 15
 
-extern u16_t audioData[];
-extern u32_t audioSampleNum;
-extern u32_t audioBufLen;
-
-/*extern float spectroTemplates[][SPECT_H][SPECT_W];
-extern float spectroBuff[][SPECT_W];
-extern complex_fract16 twids[];*/
-
-extern audio_t inAudio;
-extern cepstra_t cepstraTemplates[CEPST_TEMPLATE_NUM];
-extern cepstra_t cepstraBuff;
-
-
-//extern volatile bool dmaDone;
-extern volatile bool startRec;
 extern volatile fsm_t btnFSM;
 extern volatile action_t recAction;
 
