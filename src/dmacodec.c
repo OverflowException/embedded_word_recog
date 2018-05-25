@@ -223,7 +223,3 @@ void enableDMACodecOut(void)
 	ssync();
 }
 
-bool memDMADone(void)
-{
-	return 	(*pMDMA1_D0_IRQ_STATUS) & DMA_DONE;
-}

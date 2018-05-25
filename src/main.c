@@ -10,10 +10,10 @@
 
 audio_t inAudio;
 
-//CCA templates
-section("l2_sram") cepstra_t cepstraTemplates[CEPST_TEMPLATE_NUM];
-//High speed CCA ping-pong buffs
-section("L1_data_b") cepstra_t cepstraBuff[2];
+//Pages containing CCA templates. Low speed pages
+section("l2_sram") page_t lsPages[CEPST_TEMPLATE_NUM];
+//Pages containing CCA templates. High speed pages
+section("L1_data_b") page_t hsPages[2];
 //CCA testing buff
 section("L1_data_a") cepstra_t cepstraTest;
 
@@ -25,21 +25,15 @@ section("L1_data_a") complex_fract16 dcttwid[SPECT_W * 4];
 float logLut[FRACT16_NUM];
 ////////////////
 
-float simiArr[CEPST_TEMPLATE_NUM];
+section("L1_data_a") float simiArr[CEPST_TEMPLATE_NUM];
 float minSimi = FLT_MAX;
 u16_t simiTempIdx = 0;
 
 volatile fsm_t btnFSM;
 volatile action_t recAction;
-void InitFSM(void);
-void flushStateLED(state_t state);
 
-void flushStateMonitor(volatile state_t* state);
-inline void setRec(void);
-inline void clearRec(void);
-inline void setProc(void);
-inline void clearProc(void);
-inline void showResult(u16_t idx);
+void InitFSM(void);
+void matchTemplates(void);
 
 int main(void)
 {
@@ -66,8 +60,12 @@ int main(void)
 	
 	InitFSM();
 	
-	
 	u16_t tempIdx, currBufIdx, nextBufIdx;
+	
+	//Set all low speed pages' TI bits
+	for(tempIdx = 0; tempIdx < CEPST_TEMPLATE_NUM; ++tempIdx)
+		P_SET_TI(lsPages[tempIdx], tempIdx);
+	
 	while(true)
 	{
 		if(btnFSM.currState != btnFSM.prevState)	//button pressed, state change occured
@@ -95,11 +93,12 @@ int main(void)
 				tempIdx = btnFSM.currState->word - 1;
 				genCepstra((const fract16*)inAudio.data, 
 							inAudio.effLen, 
-							cepstraTemplates[tempIdx].data, 
-							&cepstraTemplates[tempIdx].effHeight, 
+							lsPages[tempIdx].content.data, 
+							&lsPages[tempIdx].content.effHeight, 
 							ffttwid,
 							dcttwid,
 							logLut);
+				P_CLEAR_CL(lsPages[tempIdx]);
 				break;
 			case test:
 				genCepstra((const fract16*)inAudio.data, 
@@ -111,7 +110,7 @@ int main(void)
 							logLut);
 			
 				//Transfer the first CCA from L2 to L1
-				startMemDMA((void*)cepstraTemplates, (void*)cepstraBuff, sizeof(cepstra_t));
+				/*startMemDMA((void*)cepstraTemplates, (void*)cepstraBuff, sizeof(cepstra_t));
 				for(tempIdx = 0; tempIdx < CEPST_TEMPLATE_NUM; ++tempIdx)
 				{
 					//Wait for DMA to finish
@@ -125,9 +124,10 @@ int main(void)
 					//To prevent untrained CCA
 					simiArr[tempIdx] = cepstraBuff[currBufIdx].effHeight == 0 ? 
 										FLT_MAX : genSimilarity(&cepstraTest, &cepstraBuff[currBufIdx]);
-				}
+				}*/
 				
-				//Match templates
+				matchTemplates();
+				//Find min
 				minSimi = FLT_MAX;
 				for(tempIdx = 0; tempIdx < CEPST_TEMPLATE_NUM; ++tempIdx)
 					if(simiArr[tempIdx] < minSimi)
@@ -146,6 +146,87 @@ int main(void)
 	
 }
 
+/*
+#define	P_GET_VALID(P)	((P).info & 0xc0)
+#define P_GET_TI(P)		((P).info & 0x03)
+#define P_GET_BI(P)		(((P).info & 0x04) >> 2)
+
+#define P_SET_CL(P)		((P).info |= 0x80)
+#define P_CLEAR_CL(P)	((P).info &= ~(0x80))
+#define P_SET_IC		((P).info |= 0x40)
+#define	P_CLEAR_IC		((P).info &= ~(0x40))
+#define P_SET_BI(P, B)	((P).info |= ((B << 2) & 0x04))
+#define P_SET_TI(P,	T)	((P).info |= (T & 0x03))
+*/
+
+
+//Set CL bit, set BI bit, clear  set source page IC bit, start DMA
+#define MOVE_PAGE(LSIDX, HSIDX)	P_SET_CL(lsPages[LSIDX]); P_SET_BI(lsPages[LSIDX], HSIDX); P_CLEAR_IC(lsPages[P_GET_TI(hsPages[HSIDX])]); P_SET_IC(lsPages[LSIDX]); startMemDMA((void*)&(lsPages[LSIDX]), (void*)&(hsPages[HSIDX]), sizeof(page_t))
+#define OPPO_HSIDX(HSIDX)		(((HSIDX) + 1) & 0x01)
+#define GEN_SIMI(HSIDX)			simiArr[P_GET_TI(hsPages[(HSIDX)])] = (genSimilarity(&cepstraTest, &hsPages[(HSIDX)].content))
+#define WAIT_MOVE				while(!memDMADone())
+
+void matchTemplates()
+{
+	//Contain invalid page indices
+	u8_t ivPageIds[CEPST_TEMPLATE_NUM];
+	//Total number of invalid pages
+	u8_t ivPageNum = 0;
+	
+	u8_t lsIdx, hsIdx, ivIdx, vIdx;
+	//Traverse all low speed pages, check validity, record invalid page indices
+	for(lsIdx = 0; lsIdx < CEPST_TEMPLATE_NUM; ++lsIdx)
+		if(!P_GET_VALID(lsPages[lsIdx]))
+			ivPageIds[ivPageNum++] = lsIdx;
+		else
+			vIdx = lsIdx;
+			
+	switch(ivPageNum)
+	{
+		//All pages are valid
+		case 4:
+			MOVE_PAGE(0, 0);
+			for(lsIdx = 1; lsIdx < CEPST_TEMPLATE_NUM; ++lsIdx)
+			{
+				WAIT_MOVE;
+				hsIdx = lsIdx & 0x01;
+				MOVE_PAGE(lsIdx, hsIdx);
+				GEN_SIMI(OPPO_HSIDX(hsIdx));
+			}
+			GEN_SIMI(1);
+			break;
+		
+		//3 invalid pages
+		case 3:
+			//See which high speed page is valid
+			hsIdx = P_GET_BI(lsPages[vIdx]);
+			for(ivIdx = 0; ivIdx < 3; ++ivIdx)
+			{
+				MOVE_PAGE(ivPageIds[ivIdx], (hsIdx = OPPO_HSIDX(hsIdx)));
+				GEN_SIMI(OPPO_HSIDX(hsIdx));
+				WAIT_MOVE;
+			}
+			GEN_SIMI(hsIdx);			
+			break;
+		
+		//2 invalid pages
+		case 2:
+			GEN_SIMI(0);
+			for(ivIdx = 0; ivIdx < 2; ++ivIdx)
+			{
+				MOVE_PAGE(ivPageIds[ivIdx], ivIdx);
+				GEN_SIMI(OPPO_HSIDX(ivIdx));
+				WAIT_MOVE;
+			}
+			GEN_SIMI(1);
+			break;
+		
+		//This should never happen
+		default:
+			vIdx = 0;
+			break;
+	}
+}
 
 void InitFSM()
 {
@@ -182,11 +263,3 @@ void InitFSM()
 	
 	btnFSM.currState = btnFSM.prevState = &btnFSM.stReady;
 }
-
-
-
-void flushStateLED(state_t state)
-{
-	setLEDDisplay(((1 << (state.word - 1)) << state.mode) | (1 << (state.mode + 7)));
-}
-

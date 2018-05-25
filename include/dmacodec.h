@@ -20,7 +20,7 @@ void initDMACodecInInterrupts(void);
 
 void enableDMACodecIn(void);
 void enableDMACodecOut(void);
-bool memDMADone(void);
+inline bool memDMADone(void){ return (*pMDMA1_D0_IRQ_STATUS) & DMA_DONE; }
 
 EX_INTERRUPT_HANDLER(Sport0RXISR);
 
