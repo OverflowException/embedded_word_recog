@@ -44,6 +44,8 @@
 void startADV7179(void);
 void formatDisplayBuffers(void);
 void setMonitorBg(u16_t color);
+void setPixel(char* frame_ptr, unsigned long x, unsigned long y, char *ycbcr_data);
+void setRegion(char* frame_ptr, unsigned long x, unsigned long y, unsigned long width, unsigned long height, char *ycbcr_data);
 void CallbackFunction(void *AppHandle, u32 Event, void *pArg);
 
 //void adi_video_RegionSet(char* frame_ptr, unsigned long x, unsigned long y, unsigned long width, unsigned long height, char *ycbcr_data)

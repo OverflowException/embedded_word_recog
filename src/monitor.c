@@ -16,7 +16,7 @@ char ycc_colors[8][4] =
 section("sdram_bank0") volatile u16 sFrame0[FRAMESIZE];
 
 // 4 output buffers used by AD7179
-ADI_DEV_2D_BUFFER Out1_Buffer2D, Out2_Buffer2D, Out3_Buffer2D, Out4_Buffer2D; 
+ADI_DEV_2D_BUFFER displayBuffer;
 
 ADI_DEV_DEVICE_HANDLE AD7183DriverHandle;// handle to the ad7183 driver
 ADI_DEV_DEVICE_HANDLE AD7179DriverHandle;// handle to the ad7179 driver
@@ -72,20 +72,19 @@ void startADV7179(void)
     
     
     // populate AD7179 outbound buffers
-	Out1_Buffer2D.Data = (void*)sFrame0;// address of the data storage
-	Out1_Buffer2D.ElementWidth = sizeof(u32);
-	Out1_Buffer2D.XCount = (FRAME_DATA_LEN/2);
-	Out1_Buffer2D.XModify = 4;
-	Out1_Buffer2D.YCount = NUM_LINES;
-	Out1_Buffer2D.YModify = 4;
-	Out1_Buffer2D.CallbackParameter = NULL;
-	//Out1_Buffer2D.pNext = &Out2_Buffer2D;// point to the next buffer in the chain
-	Out1_Buffer2D.pNext = NULL;
+	displayBuffer.Data = (void*)sFrame0;// address of the data storage
+	displayBuffer.ElementWidth = sizeof(u32);
+	displayBuffer.XCount = (FRAME_DATA_LEN/2);
+	displayBuffer.XModify = 4;
+	displayBuffer.YCount = NUM_LINES;
+	displayBuffer.YModify = 4;
+	displayBuffer.CallbackParameter = NULL;
+	displayBuffer.pNext = NULL; // point to the next buffer in the chain
     
 	
 	
 	ezErrorCheck(adi_dev_Control(AD7179DriverHandle, ADI_DEV_CMD_SET_DATAFLOW_METHOD, (void *)ADI_DEV_MODE_CHAINED_LOOPBACK));
-    ezErrorCheck(adi_dev_Write(AD7179DriverHandle, ADI_DEV_2D, (ADI_DEV_BUFFER *)&Out1_Buffer2D));
+    ezErrorCheck(adi_dev_Write(AD7179DriverHandle, ADI_DEV_2D, (ADI_DEV_BUFFER *)&displayBuffer));
 
 	// start outputting video data
 	ezErrorCheck(adi_dev_Control(AD7179DriverHandle, ADI_DEV_CMD_SET_DATAFLOW, (void*)TRUE));
@@ -100,6 +99,40 @@ void setMonitorBg(u16_t color)
 	adi_video_FrameFill	((char*)sFrame0, PAL_IL, ycc_colors[color]); 
 }
 
+void setPixel(char* frame_ptr, unsigned long x, unsigned long y, char *ycbcr_data)
+{
+	unsigned long skipBlank = PAL_BLANKING + EAV_SIZE + SAV_SIZE;
+	unsigned long quo = y >> 1;
+	unsigned long rem = y & 1;
+	
+	if(rem == 0)	//field1
+	{
+		frame_ptr += ((PAL_ILAF1_START - 1 + quo) * PAL_DATA_PER_LINE) + skipBlank + (x << 2);
+		
+		*frame_ptr++  = *ycbcr_data++;
+		*frame_ptr++ = *ycbcr_data++;
+		*frame_ptr++ = *ycbcr_data++;
+		*frame_ptr = *ycbcr_data;
+	}
+	else	//field2
+	{
+		frame_ptr += ((PAL_ILAF2_START - 1 + quo) * PAL_DATA_PER_LINE) + skipBlank + (x << 2);
+		*frame_ptr++ = *ycbcr_data++;
+		*frame_ptr++ = *ycbcr_data++;
+		*frame_ptr++ = *ycbcr_data++;
+		*frame_ptr = *ycbcr_data;
+	}
+}
+
+void setRegion(char* frame_ptr, unsigned long x, unsigned long y, unsigned long width, unsigned long height, char *ycbcr_data)
+{
+	unsigned long xBeg = x, xEnd = x + width, yBeg = y, yEnd = y + height;
+	
+	for(x = xBeg; x < xEnd; ++x)
+		for(y = yBeg; y < yEnd; ++y)
+			setPixel(frame_ptr, x, y, ycbcr_data);
+}
+
 void formatDisplayBuffers(void)
 {
 	adi_video_FrameFormat((char*)sFrame0, PAL_IL);
@@ -110,7 +143,7 @@ void applyMask(char* frame_ptr, const u8_t mask[][2], u32_t msize, u32_t x, u32_
 {
 	u32_t index;
 	for(index = 0; index < msize; ++index)
-		adi_video_PixelSet(frame_ptr, x + mask[index][0], y + mask[index][1], ycbcr_data);
+		setPixel(frame_ptr, x + mask[index][0], y + mask[index][1], ycbcr_data);
 }
 
 
@@ -151,7 +184,7 @@ void CallbackFunction(void *AppHandle, u32 Event, void *pArg)
 //col 20-340
 void flushStateMonitor(volatile state_t* state)
 {
-	adi_video_RegionSet((char*)sFrame0, SECT1_X, SECT1_Y, SECT_W, SECT_H, ycc_colors[BLACK]);
+	setRegion((char*)sFrame0, SECT1_X, SECT1_Y, SECT_W, SECT_H, ycc_colors[BLACK]);
 	if(state->mode == test)
 		applyMask((char*)sFrame0, mask_test, msize_test, SECT1_X, SECT1_Y, ycc_colors[GREEN]);
 		//adi_video_RegionSet((char*)sFrame0, SECT1_X, SECT1_Y, SECT_W, SECT_H, ycc_colors[BLUE]);	//test: left-up corner BLUE
@@ -172,7 +205,7 @@ void setRec(void)
 
 void clearRec(void)
 {
-	adi_video_RegionSet((char*)sFrame0, SECT3_X, SECT3_Y, SECT_W, SECT_H, ycc_colors[BLACK]);
+	setRegion((char*)sFrame0, SECT3_X, SECT3_Y, SECT_W, SECT_H, ycc_colors[BLACK]);
 }
 
 void setProc(void)
@@ -183,12 +216,12 @@ void setProc(void)
 
 void clearProc(void)
 {
-	adi_video_RegionSet((char*)sFrame0, SECT3_X, SECT3_Y, SECT_W, SECT_H, ycc_colors[BLACK]);
+	setRegion((char*)sFrame0, SECT3_X, SECT3_Y, SECT_W, SECT_H, ycc_colors[BLACK]);
 }
 
 void showResult(u16_t idx)	//starting from 0
 {
-	adi_video_RegionSet((char*)sFrame0, SECT2_X, SECT2_Y, SECT_W, SECT_H, ycc_colors[BLACK]);
+	setRegion((char*)sFrame0, SECT2_X, SECT2_Y, SECT_W, SECT_H, ycc_colors[BLACK]);
 	switch(idx + 1)
 	{
 	case one:
@@ -207,4 +240,3 @@ void showResult(u16_t idx)	//starting from 0
 		break;
 	}
 }
-

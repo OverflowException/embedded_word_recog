@@ -32,8 +32,10 @@ u16_t simiTempIdx = 0;
 volatile fsm_t btnFSM;
 volatile action_t recAction;
 
-void InitFSM(void);
+void initFSM(void);
+void initPages(void);
 void matchTemplates(void);
+void showPageInfo();
 
 int main(void)
 {
@@ -51,26 +53,23 @@ int main(void)
 	initDMACodecInInterrupts();
 	
 	initButtons();
-	//InitLEDs();
 	initButtonsInt();
 	
 	twidfftrad2_fr16(ffttwid, FFT_SIZE);
 	twidfftrad2_fr16(dcttwid, SPECT_W * 4);
 	genLogLut(logLut);
 	
-	InitFSM();
+	initFSM();
+	
+	initPages();
 	
 	u16_t tempIdx, currBufIdx, nextBufIdx;
-	
-	//Set all low speed pages' TI bits
-	for(tempIdx = 0; tempIdx < CEPST_TEMPLATE_NUM; ++tempIdx)
-		P_SET_TI(lsPages[tempIdx], tempIdx);
 	
 	while(true)
 	{
 		if(btnFSM.currState != btnFSM.prevState)	//button pressed, state change occured
 		{
-			flushStateMonitor(btnFSM.currState);//flushStateLED(*btnFSM.currState);
+			flushStateMonitor(btnFSM.currState);
 			btnFSM.prevState = btnFSM.currState;
 		}
 		
@@ -82,8 +81,8 @@ int main(void)
 			
 			restartAudioIn(inAudio.data);
 			while(recAction != end);	//wait for DMA to finish
-			clearRec();//toggleLED(6 + btnFSM.currState->mode);
-			setProc();//toggleLED(5 + btnFSM.currState->mode);
+			clearRec();
+			setProc();
 			findEffData(inAudio.data, 
 						inAudio.data, 
 						&inAudio.effLen);
@@ -147,7 +146,7 @@ int main(void)
 }
 
 /*
-#define	P_GET_VALID(P)	((P).info & 0xc0)
+#define	P_GET_VALID(P)	(((P).info & 0x80) & (((P).info & 0x40) << 1))
 #define P_GET_TI(P)		((P).info & 0x03)
 #define P_GET_BI(P)		(((P).info & 0x04) >> 2)
 
@@ -165,6 +164,19 @@ int main(void)
 #define OPPO_HSIDX(HSIDX)		(((HSIDX) + 1) & 0x01)
 #define GEN_SIMI(HSIDX)			simiArr[P_GET_TI(hsPages[(HSIDX)])] = (genSimilarity(&cepstraTest, &hsPages[(HSIDX)].content))
 #define WAIT_MOVE				while(!memDMADone())
+
+void initPages()
+{
+	u8_t idx;
+	//Init all low speed pages' TI
+	for(idx = 0; idx < CEPST_TEMPLATE_NUM; ++idx)
+		P_SET_TI(lsPages[idx], idx);
+	
+	//Init all high speed pages' TI
+	for(idx = 0; idx < 2; ++idx)
+		P_SET_TI(hsPages[idx], idx);
+	
+}
 
 void matchTemplates()
 {
@@ -228,7 +240,7 @@ void matchTemplates()
 	}
 }
 
-void InitFSM()
+void initFSM()
 {
 	btnFSM.stReady.mode = ready;
 	btnFSM.stReady.next[3] = &btnFSM.stTrain[0];
@@ -263,3 +275,4 @@ void InitFSM()
 	
 	btnFSM.currState = btnFSM.prevState = &btnFSM.stReady;
 }
+

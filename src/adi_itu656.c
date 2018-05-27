@@ -413,40 +413,6 @@ void adi_video_ColumnFill ( char *frame_ptr,FRAME_TYPE frametype,unsigned long c
     }
 }
 
-void adi_video_PixelSet(char* frame_ptr, unsigned long x, unsigned long y, char *ycbcr_data)
-{
-	unsigned long skipBlank = PAL_BLANKING + EAV_SIZE + SAV_SIZE;
-	unsigned long quo = y >> 1;
-	unsigned long rem = y & 1;
-	
-	if(rem == 0)	//field1
-	{
-		frame_ptr += ((PAL_ILAF1_START - 1 + quo) * PAL_DATA_PER_LINE) + skipBlank + (x << 2);
-		
-		*frame_ptr++  = *ycbcr_data++;
-		*frame_ptr++ = *ycbcr_data++;
-		*frame_ptr++ = *ycbcr_data++;
-		*frame_ptr = *ycbcr_data;
-	}
-	else	//field2
-	{
-		frame_ptr += ((PAL_ILAF2_START - 1 + quo) * PAL_DATA_PER_LINE) + skipBlank + (x << 2);
-		*frame_ptr++ = *ycbcr_data++;
-		*frame_ptr++ = *ycbcr_data++;
-		*frame_ptr++ = *ycbcr_data++;
-		*frame_ptr = *ycbcr_data;
-	}
-}
-
-void adi_video_RegionSet(char* frame_ptr, unsigned long x, unsigned long y, unsigned long width, unsigned long height, char *ycbcr_data)
-{
-	unsigned long xBeg = x, xEnd = x + width, yBeg = y, yEnd = y + height;
-	
-	for(x = xBeg; x < xEnd; ++x)
-		for(y = yBeg; y < yEnd; ++y)
-			adi_video_PixelSet(frame_ptr, x, y, ycbcr_data);
-}
-
 /***************************************************************************** 
 **
 ** Function:            adi_video_CopyField

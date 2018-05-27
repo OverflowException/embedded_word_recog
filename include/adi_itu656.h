@@ -260,17 +260,6 @@ unsigned long 	column_value,   // 32 bit value corresponding to column number to
 char 			*ycbcr_data     // 4 byte array of 32 bit color value of YCbCr data to be filled
 ); 
 
-/************************
-*Added by liyao
-*Start
-*************************/
-void adi_video_PixelSet(char* frame_ptr, unsigned long x, unsigned long y, char *ycbcr_data);
-void adi_video_RegionSet(char* frame_ptr, unsigned long x, unsigned long y, unsigned long width, unsigned long height, char *ycbcr_data);
-/*************************
-*Added by liyao
-*End
-************************/
-
 
 bool 	adi_video_CopyField (	// Copies Field 0 or Field 1 data to Field 1 or Field 0 location in a video frame
 char 			*frame_ptr, 	// Pointer to the formated video frame (start of the video frame)
