@@ -13,8 +13,6 @@ u32_t audioBufLen = AUDIO_BUF_LEN; //Total length of audio buffer (including 3 i
 //Avoid data bank collision with 
 section("L1_data_b") complex_fract16 fftOut[FFT_SIZE];
 
-float distMat[CEPST_H][CEPST_H];
-
 #define OVERHEAD_SAMPLE_NUM	64
 #define TIMING_SAMPLE_NUM	128
 
@@ -183,6 +181,7 @@ u32_t getAvgEnergy(const u16_t* data, u32_t count, u32_t stride, u16_t avg)
 		
 }
 
+float distMat[CEPST_H][CEPST_H];
 float dtwResult;
 float genSimilarity(const cepstra_t* cepstra1, const cepstra_t* cepstra2)
 {
