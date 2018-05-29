@@ -8,21 +8,20 @@
 #include "btnled.h"
 #include "monitor.h"
 
-audio_t inAudio;
-
 //Pages containing CCA templates. Low speed pages
 section("l2_sram") page_t lsPages[CEPST_TEMPLATE_NUM];
 //Pages containing CCA templates. High speed pages
 section("L1_data_b") page_t hsPages[2];
 //CCA testing buff
 section("L1_data_a") cepstra_t cepstraTest;
-
+//Input audio data
+section("sdram_bank1") audio_t inAudio;
 
 //Twiddle factors for FFT
 section("L1_data_a") complex_fract16 ffttwid[FFT_SIZE / 2];
 //Twiddle factors for DCT
 section("L1_data_a") complex_fract16 dcttwid[SPECT_W * 4];
-float logLut[FRACT16_NUM];
+section("sdram_bank1") float logLut[FRACT16_NUM];
 ////////////////
 
 section("L1_data_a") float simiArr[CEPST_TEMPLATE_NUM];
@@ -107,23 +106,6 @@ int main(void)
 							ffttwid,
 							dcttwid,
 							logLut);
-			
-				//Transfer the first CCA from L2 to L1
-				/*startMemDMA((void*)cepstraTemplates, (void*)cepstraBuff, sizeof(cepstra_t));
-				for(tempIdx = 0; tempIdx < CEPST_TEMPLATE_NUM; ++tempIdx)
-				{
-					//Wait for DMA to finish
-					while(!memDMADone());
-					
-					//Start next buffer transmission
-					currBufIdx = tempIdx & 0x0001;
-					nextBufIdx = (tempIdx + 1) & 0x0001;
-					startMemDMA((void*)&cepstraTemplates[tempIdx + 1], (void*)&cepstraBuff[nextBufIdx], sizeof(cepstra_t));
-					
-					//To prevent untrained CCA
-					simiArr[tempIdx] = cepstraBuff[currBufIdx].effHeight == 0 ? 
-										FLT_MAX : genSimilarity(&cepstraTest, &cepstraBuff[currBufIdx]);
-				}*/
 				
 				matchTemplates();
 				//Find min
@@ -144,20 +126,6 @@ int main(void)
 	}
 	
 }
-
-/*
-#define	P_GET_VALID(P)	(((P).info & 0x80) & (((P).info & 0x40) << 1))
-#define P_GET_TI(P)		((P).info & 0x03)
-#define P_GET_BI(P)		(((P).info & 0x04) >> 2)
-
-#define P_SET_CL(P)		((P).info |= 0x80)
-#define P_CLEAR_CL(P)	((P).info &= ~(0x80))
-#define P_SET_IC		((P).info |= 0x40)
-#define	P_CLEAR_IC		((P).info &= ~(0x40))
-#define P_SET_BI(P, B)	((P).info |= ((B << 2) & 0x04))
-#define P_SET_TI(P,	T)	((P).info |= (T & 0x03))
-*/
-
 
 //Set CL bit, set BI bit, clear  set source page IC bit, start DMA
 #define MOVE_PAGE(LSIDX, HSIDX)	P_SET_CL(lsPages[LSIDX]); P_SET_BI(lsPages[LSIDX], HSIDX); P_CLEAR_IC(lsPages[P_GET_TI(hsPages[HSIDX])]); P_SET_IC(lsPages[LSIDX]); startMemDMA((void*)&(lsPages[LSIDX]), (void*)&(hsPages[HSIDX]), sizeof(page_t))

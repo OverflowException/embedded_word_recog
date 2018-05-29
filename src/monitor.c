@@ -149,33 +149,6 @@ void applyMask(char* frame_ptr, const u8_t mask[][2], u32_t msize, u32_t x, u32_
 
 void CallbackFunction(void *AppHandle, u32 Event, void *pArg)
 {
-	/*switch (Event)
-	{
-		// CASE (buffer processed)
-        	case ADI_DEV_EVENT_BUFFER_PROCESSED:
-        	// IF (it's an outbound buffer that's been sent out from AD7179 encoder)
-    	    	if (AppHandle == (void *)0x7179) {
-#ifndef USE_LOOPBACK // chained buffer
-		// requeue outbound buffer to ADV7179
-		adi_dev_Write(AD7179DriverHandle, ADI_DEV_2D, pArg);
-#endif   
-       	    	
-       	    // ELSE (it's an inbound buffer that's been filled by the AD7183 decoder)
-	        } else {
-    	        
-#ifndef USE_LOOPBACK // chained buffer
-		// requeue inbound buffer to ADV7183
-		adi_dev_Read(AD7183DriverHandle, ADI_DEV_2D, pArg);
-#endif 	    
-        	    	
-       	    // ENDIF
-   	        }
-        	
-           break;
-		
-	}*/
-
-	// return
 }
 
 
